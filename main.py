@@ -268,7 +268,7 @@ async def add_food(message: types.Message):
 
 @dp.message_handler(lambda message: not message.text.isdigit(), state = ClientStatesGroup.food_state)
 async def check_food(message: types.Message):
-    await message.answer('Введите число!')
+    await message.answer('Неверный формат. Введите число!')
 
 @dp.message_handler(state = ClientStatesGroup.food_state)
 async def load_food(message: types.Message, state: FSMContext):
