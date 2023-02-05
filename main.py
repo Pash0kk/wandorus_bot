@@ -286,7 +286,7 @@ async def load_food(message: types.Message, state: FSMContext):
 
         await ClientStatesGroup.main_state.set()
 
-@dp.message_handler(Text(equals='Просмотреть отчет'), state=ClientStatesGroup.main_personal_state)
+@dp.message_handler(Text(equals='Просмотреть отчет'), state=ClientStatesGroup.main_city_state)
 async def show_report(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         for i in cur.execute("SELECT * FROM city WHERE city_name == '{key}'".format(key=data['city'][0])).fetchall():
