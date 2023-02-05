@@ -177,7 +177,7 @@ async def start_command(message: types.Message):
     
     
 
-@dp.message_handler(lambda message: not message.text.isalpha(), state = ClientStatesGroup.name_state)
+@dp.message_handler(lambda message: message.text.isdigit(), state = ClientStatesGroup.name_state)
 async def check_name(message: types.Message):
     await message.reply('Неверный формат, используйте буквы')
 
