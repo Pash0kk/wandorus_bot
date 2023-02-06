@@ -297,10 +297,10 @@ async def load_changename(message: types.Message, state: FSMContext):
         data['name'] = message.text
         name = cur.execute("SELECT name FROM profile WHERE name == '{key}'".format(key=data['name'])).fetchone()
         print(data)
-        if data['name'] == name:
+        if data['name'] == name[0]:
             await message.reply('Имя принято. Введите должность', reply_markup=get_abort())
             await ClientStatesGroup.main_empire_post_state.set()
-        elif data['name'] != name:
+        elif data['name'] != name[0]:
             await message.reply('Такого имени не существует', reply_markup=get_abort())
 
 @dp.message_handler(Text(equals=['Королева', 'Король', 'Глава', 'Император', 'Регент', 'Безработный']), state = ClientStatesGroup.main_empire_post_state)
@@ -327,7 +327,7 @@ async def load_changename(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['name'] = message.text
         name = cur.execute("SELECT name FROM profile WHERE name == '{key}'".format(key=data['name'])).fetchone()
-        if data['name'] == name:
+        if data['name'] == name[0]:
             await message.reply('Имя принято. Введите должность', reply_markup=get_abort())
             await ClientStatesGroup.main_empire_salary_state.set()
         else:
