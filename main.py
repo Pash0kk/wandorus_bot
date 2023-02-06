@@ -16,13 +16,14 @@ async def on_startup(_):
     
     scheduler.add_job(food_degr_system, trigger="interval", days=2)
     scheduler.add_job(salary_system, trigger="cron", day_of_week='fri')
+    scheduler.add_job(income_system, trigger="cron", day_of_week='fri')
     scheduler.start()
 
 
 async def db_start():
     global db, cur
 
-    db = sq.connect('users.db')
+    db = sq.connect('wandorus_bot/users.db')
     cur = db.cursor()
 
 async def edit_profile(money, food, name):
@@ -42,7 +43,6 @@ scheduler = AsyncIOScheduler()
 async def food_degr_system():
     for i in cur.execute("SELECT * FROM profile").fetchall():
         name = i[0]
-        salary = i[1]
         money = int(i[2])
         food = int(i[3])
 
@@ -53,7 +53,7 @@ async def food_degr_system():
         elif food <= 0:
             money = money - 50
 
-        await edit_profile(salary, money, food, name)
+        await edit_profile(money, food, name)
 
 async def salary_system():
     for i in cur.execute("SELECT * FROM profile").fetchall():
@@ -64,15 +64,39 @@ async def salary_system():
 
         money = money + salary
         
-        await edit_profile(salary, money, food, name)
+        await edit_profile(money, food, name)
+
+async def income_system():
+    for i in cur.execute("SELECT * FROM city").fetchall():
+        city_name = i[0]
+        money = i[2]
+        income = i[3]
+        consumption = i[4]
+        
+        money = money + (income - consumption)
+
+        cur.execute("UPDATE city SET money = '{}' WHERE city_name == '{}'".format(money, city_name))
+        db.commit()
+
 
 
 def get_main_keyboard() -> ReplyKeyboardMarkup:
     kb = ReplyKeyboardMarkup(resize_keyboard=True)
-    b1 = KeyboardButton(text='Город')
-    b2 = KeyboardButton(text='Личные')
-    b3 = KeyboardButton(text='Сменить персонажа')
-    kb.add(b1).add(b2).add(b3)
+    b1 = KeyboardButton(text='Империя')
+    b2 = KeyboardButton(text='Город')
+    b3 = KeyboardButton(text='Личные')
+    b4 = KeyboardButton(text='Сменить персонажа')
+    kb.add(b1).add(b2).add(b3).add(b4)
+
+    return kb
+
+def get_empire_keyboard() -> ReplyKeyboardMarkup:
+    kb = ReplyKeyboardMarkup(resize_keyboard=True)
+    b1 = KeyboardButton(text='Отчет страны')
+    b2 = KeyboardButton(text='Сменить должность')
+    b3 = KeyboardButton(text='Сменить зарплату')
+    b4 = KeyboardButton(text='Отмена')
+    kb.add(b1).add(b2).add(b3).add(b4)
 
     return kb
 
@@ -145,6 +169,13 @@ class ClientStatesGroup(StatesGroup):
     main_city_state = State()
     main_city_trade_state = State()
     main_city_trade_food_state = State()
+    main_city_trade_wood_state = State()
+
+    main_empire_state = State()
+    main_empire_name_state = State()
+    main_empire_post_state = State()
+    main_empire_salary_name_state = State()
+    main_empire_salary_state = State()
 
 
 
@@ -163,7 +194,7 @@ async def abort_command(message: types.Message, state: FSMContext):
     await state.finish()
     await message.answer("Процесс был прерван! Введите /start, чтобы начать!", reply_markup=ReplyKeyboardRemove())
 
-@dp.message_handler(Text(equals=['Постройка зданий', 'Найм войск', 'Купить дерево', 'Купить камень', 'Купить уголь']), state = "*")
+@dp.message_handler(Text(equals=['Постройка зданий', 'Найм войск', 'Купить камень', 'Купить уголь']), state = "*")
 async def check_food(message: types.Message):
     await message.delete()
     await message.answer('Данная функция пока еще в разработке!', reply_markup=get_maincity_keyboard())
@@ -230,6 +261,91 @@ async def buy_food(message: types.Message, state: FSMContext):
     await ClientStatesGroup.main_personal_state.set()
     await message.answer('Что именно вы хотите посмотреть?', reply_markup=get_personal_keyboard())
 
+
+@dp.message_handler(Text(equals='Империя'), state=ClientStatesGroup.main_state)
+async def city_command(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['post'] = cur.execute("SELECT post FROM profile WHERE name == '{key}'".format(key=data['name'])).fetchone()
+        post = cur.execute("SELECT post FROM empire WHERE post == '{key}'".format(key=data['post'][0])).fetchone()
+        if data['post'] == post:
+            await message.answer('Вы вошли в меню империи! Что хотите сделать?', reply_markup=get_empire_keyboard())
+            await ClientStatesGroup.main_empire_state.set()
+        elif data['post'] != post:
+            await message.answer('Вы не являетесь правителем империи!')
+            print(data)
+
+@dp.message_handler(Text(equals='Отчет страны'), state=ClientStatesGroup.main_empire_state)
+async def show_report(message: types.Message):
+    for i in cur.execute("SELECT * FROM empire").fetchall():
+        await message.answer(text=f'Отчет Империи Вандорис:\nВо главе государства: {i[1]}')
+    for i in cur.execute("SELECT * FROM city").fetchall():
+        await message.answer(text=f'Отчет города {i[0]}:\nКазна: {i[2]}\nДоход: {i[3]} талеров\nРасход: {i[4]} талеров\nСклад:\nЕда: {i[5]}\nДерево: {i[6]}\nКамень: {i[7]}\nЖелезо: {i[8]}\nУголь: {i[9]}\nАрмия: {i[10]}')
+    await message.answer('Отчет проведен успешно!', reply_markup=get_cancel())
+
+@dp.message_handler(Text(equals='Сменить должность'), state=ClientStatesGroup.main_empire_state)
+async def city_command(message: types.Message):
+    await ClientStatesGroup.main_empire_name_state.set()
+    await message.answer('Введите имя персонажа, кому хотели бы сменить должность', reply_markup=get_abort())
+
+@dp.message_handler(lambda message: message.text.isdigit(), state = ClientStatesGroup.main_empire_name_state)
+async def check_changename(message: types.Message):
+    await message.reply('Неверный формат, используйте буквы')
+
+@dp.message_handler(state = ClientStatesGroup.main_empire_name_state)
+async def load_changename(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['name'] = message.text
+        name = cur.execute("SELECT name FROM profile WHERE name == '{key}'".format(key=data['name'])).fetchone()
+        if data['name'] == name:
+            await message.reply('Имя принято. Введите должность', reply_markup=get_abort())
+            await ClientStatesGroup.main_empire_post_state.set()
+        else:
+            await message.reply('Такого имени не существует', reply_markup=get_abort())
+
+@dp.message_handler(Text(equals=['Королева', 'Король', 'Глава', 'Император', 'Регент', 'Безработный']), state = ClientStatesGroup.main_empire_post_state)
+async def check_changepost(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        input_post = message.text
+        cur.execute("UPDATE profile SET post = '{}' WHERE name == '{}'".format(input_post, data['name']))
+        db.commit()
+        await message.reply('Должность успешно изменена.', reply_markup=get_empire_keyboard())
+        await ClientStatesGroup.main_empire_state.set()
+
+
+@dp.message_handler(Text(equals='Сменить зарплату'), state=ClientStatesGroup.main_empire_state)
+async def city_command(message: types.Message):
+    await ClientStatesGroup.main_empire_salary_name_state.set()
+    await message.answer('Введите имя персонажа, кому хотели бы сменить зарплату', reply_markup=get_abort())
+
+@dp.message_handler(lambda message: message.text.isdigit(), state = ClientStatesGroup.main_empire_salary_name_state)
+async def check_changename(message: types.Message):
+    await message.reply('Неверный формат, используйте буквы')
+
+@dp.message_handler(state = ClientStatesGroup.main_empire_salary_name_state)
+async def load_changename(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        data['name'] = message.text
+        name = cur.execute("SELECT name FROM profile WHERE name == '{key}'".format(key=data['name'])).fetchone()
+        if data['name'] == name:
+            await message.reply('Имя принято. Введите должность', reply_markup=get_abort())
+            await ClientStatesGroup.main_empire_salary_state.set()
+        else:
+            await message.reply('Такого имени не существует', reply_markup=get_abort())
+
+@dp.message_handler(lambda message: not message.text.isdigit(), state = ClientStatesGroup.main_empire_salary_state)
+async def check_changename(message: types.Message):
+    await message.reply('Неверный формат, введите число')
+
+@dp.message_handler(state = ClientStatesGroup.main_empire_salary_state)
+async def check_changepost(message: types.Message, state: FSMContext):
+    async with state.proxy() as data:
+        input_salary = message.text
+        cur.execute("UPDATE profile SET salary = '{}' WHERE name == '{}'".format(input_salary, data['name']))
+        db.commit()
+        await message.reply('Зарплата успешно изменена.', reply_markup=get_empire_keyboard())
+        await ClientStatesGroup.main_empire_state.set()
+
+
 @dp.message_handler(Text(equals='Город'), state=ClientStatesGroup.main_state)
 async def city_command(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
@@ -240,6 +356,7 @@ async def city_command(message: types.Message, state: FSMContext):
             for i in cur.execute("SELECT * FROM city WHERE city_name == '{key}'".format(key=data['city'][0])).fetchall():
                 data['money'] = i[2]
                 data['food'] = i[5]
+                data['wood'] = i[6]
             print(data)
             await ClientStatesGroup.main_city_state.set()
         elif data['post'] != post:
@@ -318,7 +435,32 @@ async def load_city_food(message: types.Message, state: FSMContext):
 
         await ClientStatesGroup.main_city_state.set()
 
+@dp.message_handler(Text(equals='Купить дерево'), state=ClientStatesGroup.main_city_trade_state)
+async def add_wood(message: types.Message):
+    await ClientStatesGroup.main_city_trade_wood_state.set()
+    await message.answer('На данный момент дерево стоит 20 талеров. \nВведите желаемое количество', reply_markup=get_cancel())
+    await message.delete()
 
+@dp.message_handler(lambda message: not message.text.isdigit(), state = ClientStatesGroup.main_city_trade_wood_state)
+async def check_wood(message: types.Message):
+    await message.answer('Неверный формат. Введите число!')
+
+@dp.message_handler(state=ClientStatesGroup.main_city_trade_wood_state)
+async def load_city_wood(message: types.Message, state: FSMContext):
+    count = int(message.text)
+    async with state.proxy() as data:
+        money = int(data['money'])
+        wood = int(data['wood'])
+        if money >= count * 20:
+            money = money - (count * 20)
+            wood = count + wood
+            await message.answer(f'Вы купили {count} дерева.', reply_markup=get_maincity_keyboard())
+            cur.execute("UPDATE city SET money = '{}', wood = '{}' WHERE city_name == '{}'".format(money, wood, data['city'][0]))
+            db.commit()
+        else:
+            await message.answer(f"У вас недостаточно денег! Сейчас у вас {data['money']} талеров.", reply_markup=get_maincity_keyboard())
+
+        await ClientStatesGroup.main_city_state.set()
 
 
 if __name__ == '__main__':
