@@ -23,7 +23,7 @@ async def on_startup(_):
 async def db_start():
     global db, cur
 
-    db = sq.connect('Pash0kk/wandorus_bot/users.db')
+    db = sq.connect('users.db')
     cur = db.cursor()
 
 async def edit_profile(money, food, name):
