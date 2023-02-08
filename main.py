@@ -294,20 +294,20 @@ async def check_changename(message: types.Message):
 @dp.message_handler(state = ClientStatesGroup.main_empire_name_state)
 async def load_changename(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        data['name'] = message.text
-        name = cur.execute("SELECT name FROM profile WHERE name == '{key}'".format(key=data['name'])).fetchone()
+        data['input_name'] = message.text
+        name = cur.execute("SELECT name FROM profile WHERE name == '{key}'".format(key=data['input_name'])).fetchone()
         print(data)
-        if data['name'] == name[0]:
+        if data['input_name'] == name[0]:
             await message.reply('Имя принято. Введите должность', reply_markup=get_abort())
             await ClientStatesGroup.main_empire_post_state.set()
-        elif data['name'] != name[0]:
+        elif data['input_name'] != name[0]:
             await message.reply('Такого имени не существует', reply_markup=get_abort())
 
 @dp.message_handler(Text(equals=['Королева', 'Король', 'Глава', 'Император', 'Регент', 'Безработный']), state = ClientStatesGroup.main_empire_post_state)
 async def check_changepost(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         input_post = message.text
-        cur.execute("UPDATE profile SET post = '{}' WHERE name == '{}'".format(input_post, data['name']))
+        cur.execute("UPDATE profile SET post = '{}' WHERE name == '{}'".format(input_post, data['input_name']))
         db.commit()
         await message.reply('Должность успешно изменена.', reply_markup=get_empire_keyboard())
         await ClientStatesGroup.main_empire_state.set()
@@ -325,9 +325,9 @@ async def check_changename(message: types.Message):
 @dp.message_handler(state = ClientStatesGroup.main_empire_salary_name_state)
 async def load_changename(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
-        data['name'] = message.text
-        name = cur.execute("SELECT name FROM profile WHERE name == '{key}'".format(key=data['name'])).fetchone()
-        if data['name'] == name[0]:
+        data['input_name'] = message.text
+        name = cur.execute("SELECT name FROM profile WHERE name == '{key}'".format(key=data['input_name'])).fetchone()
+        if data['input_name'] == name[0]:
             await message.reply('Имя принято. Введите должность', reply_markup=get_abort())
             await ClientStatesGroup.main_empire_salary_state.set()
         else:
@@ -341,7 +341,7 @@ async def check_changename(message: types.Message):
 async def check_changepost(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         input_salary = message.text
-        cur.execute("UPDATE profile SET salary = '{}' WHERE name == '{}'".format(input_salary, data['name']))
+        cur.execute("UPDATE profile SET salary = '{}' WHERE name == '{}'".format(input_salary, data['input_name']))
         db.commit()
         await message.reply('Зарплата успешно изменена.', reply_markup=get_empire_keyboard())
         await ClientStatesGroup.main_empire_state.set()
