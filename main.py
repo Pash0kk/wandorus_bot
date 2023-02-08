@@ -23,7 +23,7 @@ async def on_startup(_):
 async def db_start():
     global db, cur
 
-    db = sq.connect('users.db')
+    db = sq.connect('mysql://root:cDtSzpcOcIQhSLhsx14X@containers-us-west-197.railway.app:7656/railway')
     cur = db.cursor()
 
 async def edit_profile(money, food, name):
@@ -296,11 +296,11 @@ async def load_changename(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['input_name'] = message.text
         name = cur.execute("SELECT name FROM profile WHERE name == '{key}'".format(key=data['input_name'])).fetchone()
-        print(data['input_name'])
-        if data['input_name'] == name[0]:
+
+        if not name is None:
             await message.reply('Имя принято. Введите должность', reply_markup=get_abort())
             await ClientStatesGroup.main_empire_post_state.set()
-        elif data['input_name'] != name[0]:
+        else:
             await message.reply('Такого имени не существует', reply_markup=get_abort())
 
 @dp.message_handler(Text(equals=['Королева', 'Король', 'Глава', 'Император', 'Регент', 'Безработный']), state = ClientStatesGroup.main_empire_post_state)
@@ -327,7 +327,8 @@ async def load_changename(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['input_name'] = message.text
         name = cur.execute("SELECT name FROM profile WHERE name == '{key}'".format(key=data['input_name'])).fetchone()
-        if data['input_name'] == name[0]:
+
+        if not name is None:
             await message.reply('Имя принято. Введите должность', reply_markup=get_abort())
             await ClientStatesGroup.main_empire_salary_state.set()
         else:
