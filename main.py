@@ -23,7 +23,7 @@ async def on_startup(_):
 async def db_start():
     global db, cur
 
-    db = sq.connect('mysql://root:cDtSzpcOcIQhSLhsx14X@containers-us-west-197.railway.app:7656/railway')
+    db = sq.connect('mysql://${{ MYSQLUSER }}:${{ MYSQLPASSWORD }}@${{ MYSQLHOST }}:${{ MYSQLPORT }}/${{ MYSQLDATABASE }}')
     cur = db.cursor()
 
 async def edit_profile(money, food, name):
