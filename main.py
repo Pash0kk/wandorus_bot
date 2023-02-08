@@ -296,7 +296,7 @@ async def load_changename(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         data['input_name'] = message.text
         name = cur.execute("SELECT name FROM profile WHERE name == '{key}'".format(key=data['input_name'])).fetchone()
-        print(data)
+        print(data['input_name'])
         if data['input_name'] == name[0]:
             await message.reply('Имя принято. Введите должность', reply_markup=get_abort())
             await ClientStatesGroup.main_empire_post_state.set()
